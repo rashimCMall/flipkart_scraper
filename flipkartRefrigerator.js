@@ -1,17 +1,30 @@
-const axios = require('axios');
-const cheerio = require('cheerio');
+const axios = require("axios");
+const fs = require("fs");
 const { Parser } = require('json2csv');
-const fs = require('fs');
+const nodeCron = require('node-cron')
+const mongodb = require('mongodb')
+const cheerio = require('cheerio');
 const { children, eq, first } = require('cheerio/lib/api/traversing');
 
 
-(async () => {
+const url = 'mongodb+srv://vishalCitymall:vishal12345@cluster0.v408j.mongodb.net/test';
+var dbConn;
+var dbClient;
+
+async function find() {
   try {
     let pageNo = 1;
     const data = [];
     let found = true;
+    
+    const client = await mongodb.MongoClient.connect(url, {
+        useUnifiedTopology: true,
+    })
+    console.log('DB Connected!');
+    dbConn = await client.db();
+    dbClient = client;
 
-    while(found && pageNo <= 50) {
+    while(found && pageNo <= 100) {
       found = false;
 
       const response = await axios.get(`https://www.flipkart.com/refrigerators/pr?sid=j9e,abm,hzg&otracker=categorytree&page=${pageNo}`, {
@@ -41,16 +54,16 @@ const { children, eq, first } = require('cheerio/lib/api/traversing');
         const rating_and_reviews = $(rating_and_review_section).find('._13vcmD')
         
         let star = $(rating_and_review_section).find('._3LWZlK').eq(0).text();
-        let rating = rating_and_reviews.prev().text().replace(/(&nbsp;)*/g, '').split(" ")[0];
-        let review = rating_and_reviews.next().text().replace(/(&nbsp;)*/g, '').split(" ")[0];
+        let rating = rating_and_reviews.prev().text().replace(/(&nbsp;)*/g, '').split(" ")[0].trim();
+        let review = rating_and_reviews.next().text().replace(/(&nbsp;)*/g, '').split(" ")[0].trim();
 
         if(!rating_and_review_section) {
             star = rating = review = 'NULL';
         }
 
         const price_section = a_element.find('._25b18c').html();
-        const price = $(price_section).eq(0).text();
-        let discount = $(price_section).eq(2).children(0).text().split(" ")[0];
+        const price = $(price_section).eq(0).text().trim();
+        let discount = $(price_section).eq(2).children(0).text().split(" ")[0].trim();
         if(!discount) {
           discount = "NULL";
         }
@@ -74,11 +87,27 @@ const { children, eq, first } = require('cheerio/lib/api/traversing');
       pageNo += 1;
     }
 
-    const parser = new Parser();
-    const csv = parser.parse(data);
-    fs.writeFileSync('./flipkart_data.csv',csv,"utf-8"); 
+    // const parser = new Parser();
+    // const csv = parser.parse(data);
+    // fs.writeFileSync('./flipkart_data.csv',csv,"utf-8"); 
+
+
+    const collectionName = 'flipkartRefrigerator';
+    const collection = dbConn.collection(collectionName);
+
+    collection.deleteMany({});
+    collection.insertMany(data, (err, result) => {
+       if (err) console.log(err);
+       if(result){
+          console.log('Import CSV into database successfully.');
+          console.log('Number of documents inserted: ' + result.insertedCount);
+          dbClient.close();
+        }
+    });
 
   } catch (error) {
     console.error(error);
   }
-})(); 
+}
+
+nodeCron.schedule("0 0 */1 * *", find)
