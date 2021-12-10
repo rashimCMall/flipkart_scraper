@@ -6,6 +6,7 @@ const mongodb = require('mongodb')
 const cheerio = require('cheerio');
 const { children, eq, first } = require('cheerio/lib/api/traversing');
 
+// Name, URL, image, star, reviews, Price, discount, capacity, type
 
 const url = 'mongodb+srv://vishalCitymall:vishal12345@cluster0.v408j.mongodb.net/test';
 var dbConn;
@@ -26,8 +27,8 @@ async function find() {
 
     while(found && pageNo <= 100) {
       found = false;
-
-      const response = await axios.get(`https://www.flipkart.com/refrigerators/pr?sid=j9e,abm,hzg&otracker=categorytree&page=${pageNo}`, {
+      console.log('Page No:',pageNo)
+      const response = await axios.get(`https://www.flipkart.com/washing-machines/pr?sid=j9e%2Cabm%2C8qx&fm=neo%2Fmerchandising&iid=M_7d9a09b7-273f-459d-bd28-74e6e47c64ef_1_372UD5BXDFYS_MC.MWW5PQN4XAEH&otracker=hp_rich_navigation_1_1.navigationCard.RICH_NAVIGATION_Appliances~Washing%2BMachines~All_MWW5PQN4XAEH&otracker1=hp_rich_navigation_PINNED_neo%2Fmerchandising_NA_NAV_EXPANDABLE_navigationCard_cc_1_L2_view-all&cid=MWW5PQN4XAEH&page=${pageNo}`, {
         headers: {
           "Accept":"text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
           "Accept-Encoding": "gzip, deflate, br",
@@ -35,6 +36,7 @@ async function find() {
         },
         gzip: true,
       });
+
       const $ = cheerio.load(response.data);
 
       let countOfItems = 0;
@@ -51,21 +53,21 @@ async function find() {
         let capacity = "NULL";
         let i = 1;
         while(i < name_list.length && isNaN(name_list[i][0])){
-          i += 1;
+            i += 1;
         }
         if(i < name_list.length)
           capacity = name_list[i];
         
-
-        const rating_and_review_section = (a_element.find('._3pLy-c > div').find('.gUuXy-')).html();
+        const rating_and_review_section = (a_element.find('.gUuXy-')).html();
         const rating_and_reviews = $(rating_and_review_section).find('._13vcmD')
         
         let star = $(rating_and_review_section).find('._3LWZlK').eq(0).text();
         let rating = rating_and_reviews.prev().text().replace(/(&nbsp;)*/g, '').split(" ")[0].trim();
         let review = rating_and_reviews.next().text().replace(/(&nbsp;)*/g, '').split(" ")[0].trim();
-
+        const type = (a_element.find('.fMghEO > ul > li:first')).text();
+        
         if(!rating_and_review_section) {
-            star = rating = review = 'NULL';
+          star = rating = review = 'NULL';
         }
 
         const price_section = a_element.find('._25b18c').html();
@@ -74,33 +76,31 @@ async function find() {
         if(!discount) {
           discount = "NULL";
         }
-
+        
         data.push({
-            URL: url,
-            Image: image,
-            Name: name,
-            Brand: brand,
-            Capacity: capacity,
-            Star: star,
-            Rating: rating,
-            Review: review,
-            Price: price,
-            Discount: discount
+          URL: url,
+          Image: image,
+          Name: name,
+          Brand: brand,
+          Capacity: capacity,
+          Type: type,
+          Star: star,
+          Rating: rating,
+          Review: review,
+          Price: price,
+          Discount: discount
         });
       });
-
-      console.log(`Page No:${pageNo}`);
 
       if(countOfItems <= 1) break;
       pageNo += 1;
     }
-
+      
     // const parser = new Parser();
     // const csv = parser.parse(data);
     // fs.writeFileSync('./flipkart_data.csv',csv,"utf-8"); 
-
-
-    const collectionName = 'flipkartRefrigerator';
+    
+    const collectionName = 'flipkartWashingMachine';
     const collection = dbConn.collection(collectionName);
 
     collection.deleteMany({});
@@ -112,7 +112,7 @@ async function find() {
           dbClient.close();
         }
     });
-
+    
   } catch (error) {
     console.error(error);
   }
