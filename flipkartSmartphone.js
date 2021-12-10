@@ -18,12 +18,12 @@ async function find() {
     const data = [];
     let found = true;
     
-    // const client = await mongodb.MongoClient.connect(url, {
-    //     useUnifiedTopology: true,
-    // })
-    // console.log('DB Connected!');
-    // dbConn = await client.db();
-    // dbClient = client;
+    const client = await mongodb.MongoClient.connect(url, {
+        useUnifiedTopology: true,
+    })
+    console.log('DB Connected!');
+    dbConn = await client.db();
+    dbClient = client;
 
     while(found && pageNo <= 100) {
       found = false;
@@ -94,28 +94,23 @@ async function find() {
       if(countOfItems <= 1) break;
       pageNo += 1;
     }
-      
-    const parser = new Parser();
-    const csv = parser.parse(data);
-    fs.writeFileSync('./flipkart_smartphone_data.csv',csv,"utf-8"); 
     
-    // const collectionName = 'flipkartSmartphone';
-    // const collection = dbConn.collection(collectionName);
+    const collectionName = 'flipkartSmartphone';
+    const collection = dbConn.collection(collectionName);
 
-    // collection.deleteMany({});
-    // collection.insertMany(data, (err, result) => {
-    //    if (err) console.log(err);
-    //    if(result){
-    //       console.log('Import CSV into database successfully.');
-    //       console.log('Number of documents inserted: ' + result.insertedCount);
-    //       dbClient.close();
-    //     }
-    // });
+    collection.deleteMany({});
+    collection.insertMany(data, (err, result) => {
+       if (err) console.log(err);
+       if(result){
+          console.log('Import CSV into database successfully.');
+          console.log('Number of documents inserted: ' + result.insertedCount);
+          dbClient.close();
+        }
+    });
     
   } catch (error) {
     console.error(error);
   }
 }
 
-// nodeCron.schedule("0 0 */1 * *", find);
-find();
+nodeCron.schedule("0 0 */1 * *", find);
